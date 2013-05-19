@@ -3,21 +3,21 @@ package org.template.core;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.charset.Charset;
+import java.net.URL;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+
 
 public class Template {
 	/*
@@ -56,23 +56,104 @@ public class Template {
 	 */
 	public Template(String base, String coding, Class<?>...fclss)
 	{
+		if (base == null) base = "";
 		File dir = new File(base);
 		this.coding = coding != null ? coding: defcod;
+		//物理路径
 		if (dir.isDirectory()) {
-			this.base = base != null ? base: "";
+			this.base =base;
 		} else {
 			//classpath Relative paths
-			this.base = Template.class.getClassLoader().getResource(base).getFile();
+			this.base = Thread.currentThread().
+						getContextClassLoader().getResource(base).getFile();
 		}
 		loadFunc(PUBFUNC, fclss);
 		filecache = new HashMap<String, TemplateCache>();
 	}
 	
 	/*
+	 *@param  paths       class路径或class对象
+	 *				      The class path or the class object
+	 *@return Class<?>[]  存放全局方法的class数组
+	 *					  Storage class array of global method
+	 */
+	public static Class<?>[] loadFuncClass(Object... paths)
+	{
+		ArrayList<Class<?>> clss = new ArrayList<Class<?>>();
+		for (Object path: paths) {
+			if (path instanceof Class) {
+				//load class
+				clss.add((Class<?>)path);
+			} else if (path instanceof String) {
+				String name = path.toString();
+				if (name.endsWith(".jar")) {
+					//load class to jar
+					clss.addAll(loadClassToJar(name));
+				} else {
+					//load class to package
+					clss.addAll(loadPackage(name));
+				}
+			}
+		}
+		return clss.toArray(new Class<?>[clss.size()]);
+	}
+	
+	/*
+	 *@param  jarfile         jar file
+	 *@return list<Class<?>>  Collection of the class
+	 */
+	private static List<Class<?>> loadClassToJar(String jarfile)
+	{
+		ArrayList<Class<?>> clss = new ArrayList<Class<?>>();
+		try {
+			JarFile jar = new JarFile(jarfile);
+			//jar包中的枚举集合
+			Enumeration<JarEntry> entries = jar.entries();
+			while (entries.hasMoreElements()) {
+				String name = entries.nextElement().getName();
+				if (name.endsWith(".class")) {
+					//去掉末尾的.class
+					name = name.substring(0, name.lastIndexOf('.'));
+					//org/suju/func/userfunc转换org.suju.func.userfunc形式
+					clss.add(Class.forName(name.replace('/', '.')));
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return clss;
+	}
+	
+	/*
+	 *@param  pack            package名
+	 *@return List<Class<?>>  返回包中的所有类的集合
+	 */
+	private static List<Class<?>> loadPackage(String pack)
+	{
+		ArrayList<Class<?>> clss = new ArrayList<Class<?>>();
+		//使用当前线程类的线程创建者的ClassLoader,载入包实际路径
+		URL filter=Thread.currentThread().
+					getContextClassLoader().getResource(pack.replace('.', '/'));
+		try {
+			String [] mappings=new File(filter.toURI()).list();
+			for (String mapping: mappings){
+				//去掉后缀.class
+				String name = mapping.substring(0, mapping.lastIndexOf('.'));
+				//pack包和name组合成class名称
+				Class<?> mapclazz=Class.forName(pack.concat(".").concat(name));
+				clss.add(mapclazz);
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return clss;
+	}
+	
+	/*
 	 * load public class method
 	 * @param class[] 2d array
 	 */
-	public void loadFunc(Class<?>[]...fclss)
+	private void loadFunc(Class<?>[]...fclss)
 	{
 		ArrayList<Method> list = new ArrayList<Method>();
 		for (Class<?>[] clss: fclss) {
@@ -175,21 +256,5 @@ public class Template {
 			hashcode ^= obj.hashCode();
 		}
 		return hashcode;
-	}
-	//test
-	public static void main(String[] args) throws Exception {
-		Map<String, Object> data = new HashMap<String, Object>();
-		Map<String, Object> suju = new HashMap<String, Object>();
-		suju.put("time", new Timestamp(System.currentTimeMillis()));
-		suju.put("array", new int[]{5, 4});
-		data.put("suju",suju);
-		data.put("links", "baidu,www.baidu.com;sina,www.sina.com");
-		data.put("nums", new int[]{5, 4});
-		Template t1 = null;
-		for (int i=0; i < 1; i++) {
-			t1 =Template.getTemplate("view/", null);
-			String result = t1.parse("demo.html", data);
-			System.out.println("re:"+result);
-		}
 	}
 }

@@ -475,6 +475,9 @@ public class TemplateParse {
 		try {
 			//toClassArray(parameter)获取参数class数组
 			method = data.getClass().getMethod(fun, toClassArray(parameter));
+			if (!method.isAccessible()) {
+				method.setAccessible(true);
+			}
 			return method.invoke(data, parameter);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -493,11 +496,27 @@ public class TemplateParse {
 		try {
 			field = data.getClass().getField(var);
 			return field.get(data);
+		} catch (NoSuchFieldException e) {
+			return execMethod(data, ConveMethod(var));
 		} catch (Exception e) {
 			e.printStackTrace();
 		} 
 		return null;
 	}
+	
+	/*
+	 *@param var   待转换方法的字段吗
+	 *@return      返回getXxx形式的方法名
+	 */
+	private static String ConveMethod(String var)
+	{
+		char[] chs = var.toCharArray();
+		chs[0] = Character.toUpperCase(chs[0]);
+		StringBuilder sb = new StringBuilder("get");
+		sb.append(chs);
+		return sb.toString();
+	}
+	
 	/*
 	 *@param    parameter   参数数组
 	 *@return   返回参数class的数组

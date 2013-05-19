@@ -2,9 +2,11 @@ package org.template.core;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class TemplateObj<T> {
 	
@@ -50,8 +52,11 @@ public class TemplateObj<T> {
 	 */
 	public Object[] getArray()
 	{
-		if (obj instanceof List) {
-			return ((List<?>)obj).toArray();
+		if (obj instanceof Collection) {
+			return ((Collection<?>)obj).toArray();
+		}
+		if (obj instanceof Map) {
+			return ((Map<?, ?>)obj).entrySet().toArray();
 		}
 		int length = Array.getLength(obj);		//数组length
 		Class<?> type = obj.getClass().getComponentType();

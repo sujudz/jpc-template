@@ -1,9 +1,6 @@
 package org.template.core;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.Stack;
-import java.util.regex.Pattern;
 
 public class TemplateExpre {
 
@@ -194,7 +191,7 @@ public class TemplateExpre {
 						ops.pop();		//运算符   (出栈
 					}
 					expreOpera(op, ops, exs);
-					start = i+1;
+					start = i + 1;
 					break;
 				default:
 					continue;
